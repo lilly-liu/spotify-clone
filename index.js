@@ -2,6 +2,7 @@ require('dotenv').config()
 
 const express = require('express');
 const querystring = require('node:querystring'); 
+const axios = require('axios'); 
 
 const app = express();
 
@@ -47,8 +48,37 @@ app.get('/login', (req, res) => {
       client_id: CLIENT_ID,
       redirect_uri: REDIRECT_URI,
       state: state,
+      scope: scope
     }));
 });
+app.get('/callback', function(req, res) {
+    const code = req.query.code || null;
+    
+    axios({
+        method: 'post',
+        url: 'https://accounts.spotify.com/api/token',
+        data: querystring.stringify({
+            code: code,
+            redirect_uri: REDIRECT_URI,
+            grant_type: 'authorization_code'
+        }),
+        headers: {
+            'content-type': 'application/x-www-form-urlencoded',
+            Authorization: 'Basic ' + (new Buffer.from(CLIENT_ID + ':' + CLIENT_SECRET).toString('base64'))
+          },
+    })
+        .then(response => {
+            if (response.status === 200) {
+                const { access_token, token_type } = response.data;
+                res.send(`<pre>${JSON.stringify(response.data, null, 2)}</pre>`);
+            } else {
+                res.send(response);
+            }
+        })
+        .catch(error => {
+            res.send(error);
+        });
+})
 
 app.listen(port, () => {
     console.log(`Express app listening at http://localhost:${port}`);
